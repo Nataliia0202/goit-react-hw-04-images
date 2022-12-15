@@ -1,9 +1,15 @@
 
-import React, { Component } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
+import React, { useState, useEffect } from 'react';
+import { ToastContainer} from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { fetchImages } from './services/fetchImages';
-// import { Vortex } from 'react-loader-spinner';
+import {
+  toastWarn,
+  toastSuccess,
+  toastError,
+  toastInfoDuplication,
+} from './services/toast';
+
 import {Louder} from './Louder/Louder'
 
 import { Searchbar } from './Searchbar/Searchbar';
@@ -14,156 +20,93 @@ import { ErrorImg } from './ErrorImg/ErrorImg';
 import img from 'components/images/404-Error-Websites.jpg';
 
 
-export class App extends Component {
-  state = {
-    text: '',
-    page: 1,
-    images: [],
-    largeImageData: {},
-    loading: false,
-    isModalOpen: false,
-    isError: false,
-    isLoadMore: true,
-  };
+export const App =() => {
+  const [text, setText] = useState('');
+  const [page, setPage] = useState(1);
+  const [images, setImages] = useState([]);
+  const [largeImageData, setLargeImageData] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isError, setIsError] = useState(false);
+  
 
-  async componentDidUpdate(prevProps, prevState) {
-    const { text, page } = this.state;
-    if (prevState.text !== text || prevState.page !== page) {
-      this.setState({
-        loading: true,
+  useEffect(() => {
+    if (text === '') {
+      return;
+    };
+    setLoading(true);
+    fetchImages(text, page).then(({ totalHits, hits }) => {
+      if (totalHits === 0) {
+        toastWarn();
+        setLoading(false);
+        setIsError(true);
+        return;
+      };
+      if (page === 1 && hits.length > 1) {
+        toastSuccess();
+      };
+      const onlyNeedValues = hits.map(
+        ({ id, tags, webformatURL, largeImageURL }) => ({
+          id,
+          tags,
+          webformatURL,
+          largeImageURL,
+        })
+      );
+      setImages(prevState => [...prevState, ...onlyNeedValues]);
+      setLoading(false);
+      setIsError(false);
+    }).catch(error => toastError())
+      .finally(() => {
+        setLoading(false);
       });
-      try {
-        const result = await fetchImages(text, page);
-        const { totalHits, hits } = result;
-        const onlyNeedValues = hits.map(
-          ({ id, tags, webformatURL, largeImageURL }) => ({
-            id,
-            tags,
-            webformatURL,
-            largeImageURL,
-          })
-        );
-        if (totalHits === 0) {
-          this.toastWarn();
-          return this.setState({
-            loading: false,
-            isError: true,
-          });
-        }
-        if (totalHits.length < 12) {
-          this.setState({ isloadMore: false });
-        }
-        if (page === 1 && hits.length > 1) {
-          this.toastSuccess();
-        }
-        this.setState(prevState => ({
-          images: [...prevState.images, ...onlyNeedValues],
-          loading: false,
-          isError: false,
-        }));
-      } catch (error) {
-        return this.toastError();
-      }
-    }
-  }
+  }, [text, page]);
+  
+  
 
-  searchImages = text => {
-    if (this.state.text === text.trim()) {
-      return this.toastInfoDuplication();
+  const searchImages = searchText => {
+    if (text === searchText.trim()) {
+      return toastInfoDuplication();
     }
-    this.setState({
-      text,
-      page: 1,
-      images: [],
-    });
+    setText(searchText);
+    setPage(1);
+    setImages([]);
   };
 
-  loadMoreImages = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+  const loadMoreImages = () => {
+    setPage(prevState => prevState + 1)
   };
-  toggleModal = event => {
+  const toggleModal = event => {
     const { code } = event;
-    const {
-      nodeName,
-      dataset: { source },
-      alt,
-    } = event.target;
-    const { isModalOpen } = this.state;
+    const {nodeName, dataset: { source }, alt } = event.target;
     if (nodeName === 'IMG') {
       if (isModalOpen === true) {
         return;
       }
-      this.setState({
-        isModalOpen: true,
-        largeImageData: {
-          source,
-          alt,
-        },
+      setIsModalOpen(true);
+      setLargeImageData({
+        source,
+        alt,
       });
     }
     if (nodeName === 'DIV' || code === 'Escape') {
-      this.setState({
-        isModalOpen: false,
-      });
+      setIsModalOpen(false);
     }
   };
 
-  toastSettings = {
-    theme: 'colored',
-  };
-
-  toastSuccess = () => {
-    return toast.success(
-      'Hooray! We found what you were looking for 🤗',
-      this.toastSettings
-    );
-  };
-  toastInfoNothing = () => {
-    return toast.info(
-      'It looks like you want to find nothing, please check your query 😕',
-      this.toastSettings
-    );
-  };
-  toastInfoDuplication = () => {
-    return toast.info(
-      'It looks like there are already pictures found for your request, please check if this will be a new search 🤔',
-      this.toastSettings
-    );
-  };
-  toastWarn = () => {
-    return toast.warn(
-      'Sorry, nothing was found for your request, try something else 🙈',
-      this.toastSettings
-    );
-  };
-  toastError = () => {
-    return toast.error(
-      'Oops, something went wrong, please try again 🙊',
-      this.toastSettings
-    );
-  };
-  render() {
-    const {
-      images,
-      largeImageData,
-      loading,
-      isModalOpen,
-      isError,
-      
-    } = this.state;
+  
+  
     return (
       <>
         <Searchbar
-          onSubmit={this.searchImages}
-          toastInfo={this.toastInfoNothing}
+          onSubmit={searchImages}
+          
         />
         {isError === true ? (
           <ErrorImg errorImg={img} />
         ) : (
           images.length > 0 && (
-            <ImageGallery allImages={images} onToggleModal={this.toggleModal} />
+            <ImageGallery allImages={images} onToggleModal={toggleModal} />
           )
         )}
         {loading === true ? (
@@ -173,18 +116,18 @@ export class App extends Component {
             <Button
               text="Load more"
               type="button"
-              loadMoreImages={this.loadMoreImages}
+              loadMoreImages={loadMoreImages}
             />
           )
         )}
        
         {isModalOpen && (
-          <Modal data={largeImageData} onToggleModal={this.toggleModal} />
+          <Modal data={largeImageData} onToggleModal={toggleModal} />
         )}
         <ToastContainer autoClose={3000} />
       </>
     );
-  }
+  
 };
 
 

@@ -1,44 +1,29 @@
 import PropTypes from 'prop-types';
-import { Component } from 'react';
+import { useState } from 'react';
 import css from './Searchbar.module.css';
+import {toastInfoNothing } from '../services/toast'
 
-export class Searchbar extends Component {
-  static propTypes = {
-    onSubmit: PropTypes.func.isRequired,
-    toastInfo: PropTypes.func.isRequired,
-  };
+export const Searchbar =({onSubmit}) => {
+  const [text, setText] = useState('');
 
-  state = {
-    text: '',
-  };
 
-  typeNewSearch = event => {
-    const { name, value } = event.currentTarget;
-    this.setState({
-      [name]: value,
-    });
+  const typeNewSearch = event => {
+    setText(event.target.value);
   };
-  onSubmitForm = event => {
+  const onSubmitForm = event => {
     event.preventDefault();
-    const { onSubmit, toastInfo } = this.props;
-    const { text } = this.state;
     if (text.trim() === '') {
-      return toastInfo();
+      return toastInfoNothing();
     }
     onSubmit(text);
-    this.reset();
+    setText('');
   };
-  reset = () => {
-    this.setState({
-      text: '',
-    });
-  };
+  
 
-  render() {
-    const { text } = this.state;
+  
     return (
       <header className={css.Searchbar}>
-        <form className={css.SearchForm} onSubmit={this.onSubmitForm}>
+        <form className={css.SearchForm} onSubmit={onSubmitForm}>
           <button type="submit" className={css.SearchFormButton}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -59,10 +44,14 @@ export class Searchbar extends Component {
             placeholder="Search images and photos"
             name="text"
             value={text}
-            onChange={this.typeNewSearch}
+            onChange={typeNewSearch}
           />
         </form>
       </header>
     );
-  }
+  
+};
+
+Searchbar.propTypes = {
+  onSubmit: PropTypes.func.isRequired,
 };
